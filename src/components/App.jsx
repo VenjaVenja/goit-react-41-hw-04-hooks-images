@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { useState, useEffect } from "react";
 // import { ToastContainer } from "react-toastify";
 import { Searchbar } from "./Searchbar/Searchbar";
 import { Modal } from "./Modal/Modal";
@@ -9,97 +9,73 @@ import { Button } from "./Button/Button";
 import { HelloText } from "./HelloText/HelloText";
 // import scrollSmooth from "../services/scrollSmooth"
 
-export class App extends Component {
+export const App = () => {
 
-  state = {
-    searchImg: '',
-    images: [],
-    page: 1,
-    error: null,
-    isLoading: false,
-    showModal: false,
-    modalLargeImg: null,
-  };
+  const [searchImg, setSearchImg] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalLargeImg, setModalLargeImg] = useState(null);
 
-  componentDidMount() {
-    this.setState({ images: [] })
-  };
-
-  componentDidUpdate(prevProps, prevState) {
-    const prevSearch = prevState.searchImg;
-    const nextSearch = this.state.searchImg;
-
-    const prevPage = prevState.page;
-    const nextPage = this.state.page;
-
-    if (prevSearch !== nextSearch) {
-      this.setState({ images: [], page: 1, });
-      ///включаем лоудер
-      this.setState({ isLoading: true });
-      ///запрос на сервер
-      this.fetchImages();
+  useEffect(() => {
+    if (searchImg === '') {
+      return;
     }
 
-    if (nextPage > prevPage) {
-      this.setState({ isLoading: true });
-      
-      this.fetchImages();
+    const fetchImages = () => {
+      fetchAPI(searchImg, page)
+        .then(response => {
+          setImages(prevImages => [...prevImages, ...response]);
+        })
+        .catch(error => {
+          setError(error);
+          console.log(error);
+        })
+        .finally(() => setIsLoading(false));
     };
 
-    // scrollSmooth();
+    if (page === 1) {
+      setImages([]);
+      setIsLoading(true);
+      fetchImages();
+    }
+    else {
+      setIsLoading(true);
+      fetchImages();
+    }
+  }, [searchImg, page, error]);
+  
+  const onSearchImg = searchImg => {
+    setSearchImg(searchImg);
+    setPage(1);
   };
 
-  fetchImages = () => {
-    const { searchImg, page } = this.state;
-
-    fetchAPI(searchImg, page).then(response => {
-      this.setState(prevState => ({
-        images: [...prevState.images, ...response],
-      }))
-    })
-      .catch(error => this.setState({ error })) ///ловим ошибку
-      .finally(() => this.setState({ isLoading: false })) ///отключение лоудера
+  const onNextPageSearch = () => {
+    setPage(prevPage => prevPage + 1)
   };
 
-
-  onSearchImg = searchImg => {
-    this.setState({ searchImg });
+  const openModalLargeImg = image => {
+    setModalLargeImg(image);
   };
 
-  onNextPageSearch = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1
-
-    }))
+  const toggleModal = () => {
+    setShowModal(!showModal);
   };
+  
 
-  openModalLargeImg = image => {
-    this.setState({ modalLargeImg: image });
-  };
-
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-    }));
-  };
-
-  render() {
-
-    const { toggleModal, onSearchImg, openModalLargeImg, onNextPageSearch } = this;
-    const { images, isLoading, showModal, modalLargeImg} = this.state;
-    const imagesArrayLength = images.length;
-
-    return (
+  return (
       <>
         <Searchbar onSubmit={onSearchImg} />
 
-        {imagesArrayLength === 0 && !isLoading && <HelloText text="Hai! What`s you looking for?" />}
+        {images.length === 0 && !isLoading && <HelloText text="Hai! What`s you looking for?" />}
 
-        {imagesArrayLength > 0 && <ImageGallery images={images} toggleModal={toggleModal} openModalLargeImg={openModalLargeImg} />}
+        {images.length > 0 && <ImageGallery images={images} toggleModal={toggleModal} openModalLargeImg={openModalLargeImg} />}
 
         {isLoading && <LoaderBars />}
 
-        {imagesArrayLength > 0 && <Button onClick={onNextPageSearch} />}
+        {images.length > 0 && <Button onClick={onNextPageSearch} />}
 
         {showModal && (<Modal
           onClose={toggleModal}
@@ -107,5 +83,4 @@ export class App extends Component {
         />)}
       </>
     );
-  }
 };
